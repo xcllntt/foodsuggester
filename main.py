@@ -1,9 +1,9 @@
 import os
 import json
+from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 from google import genai
 from google.genai import types
 
@@ -34,9 +34,8 @@ class SuggestionResponse(BaseModel):
 
 # Prompt template
 SYSTEM_INSTRUCTION = (
-    "You are a Nigerian food expert. Based on the user's mood and/or request, "
-    "suggest exactly 2 authentic Nigerian meals. "
-    "Each meal should have a short reason why it fits. "
+    "You are a Nigerian food expert. Based on the user's mood or custom prompt, "
+    "suggest exactly 2 authentic Nigerian meals. Each meal should have a short reason why it fits. "
     "Return JSON matching the schema."
 )
 
@@ -47,18 +46,22 @@ def health():
 @app.post("/suggestions", response_model=SuggestionResponse)
 def get_suggestions(req: SuggestionRequest):
     try:
+        # Ensure at least one input is provided
         if not req.mood and not req.prompt:
-            raise HTTPException(status_code=400, detail="At least one of 'mood' or 'prompt' must be provided")
+            raise HTTPException(
+                status_code=400,
+                detail="You must provide at least 'mood' or 'prompt'."
+            )
 
-        # Build dynamic prompt
-        prompt_parts = []
-        if req.mood:
-            prompt_parts.append(f"Mood: {req.mood}")
-        if req.prompt:
-            prompt_parts.append(f"Request: {req.prompt}")
+        # Build the final prompt
+        if req.mood and req.prompt:
+            user_prompt = f"Mood: {req.mood}\nExtra Prompt: {req.prompt}\nSuggest meals."
+        elif req.mood:
+            user_prompt = f"Mood: {req.mood}\nSuggest meals."
+        else:
+            user_prompt = f"Prompt: {req.prompt}\nSuggest meals."
 
-        prompt = "\n".join(prompt_parts)
-
+        # Gemini config
         config = types.GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
             response_mime_type="application/json",
@@ -68,7 +71,7 @@ def get_suggestions(req: SuggestionRequest):
 
         result = client.models.generate_content(
             model=MODEL,
-            contents=prompt,
+            contents=user_prompt,
             config=config,
         )
 
