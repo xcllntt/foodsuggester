@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from google import genai
 from google.genai import types
 
@@ -21,7 +22,8 @@ app = FastAPI(title="Naija Mood Meals")
 
 # Request/Response models
 class SuggestionRequest(BaseModel):
-    mood: str
+    mood: Optional[str] = None
+    prompt: Optional[str] = None
 
 class MealSuggestion(BaseModel):
     name: str
@@ -32,11 +34,11 @@ class SuggestionResponse(BaseModel):
 
 # Prompt template
 SYSTEM_INSTRUCTION = (
-    "You are a Nigerian food expert. Based on the user's mood, suggest exactly 2 authentic Nigerian meals. "
-    "Each meal should have a short reason why it fits the mood. Return JSON matching the schema."
+    "You are a Nigerian food expert. Based on the user's mood and/or request, "
+    "suggest exactly 2 authentic Nigerian meals. "
+    "Each meal should have a short reason why it fits. "
+    "Return JSON matching the schema."
 )
-
-PROMPT_TEMPLATE = "Mood: {mood}\nSuggest 3 meals."
 
 @app.get("/health")
 def health():
@@ -45,7 +47,17 @@ def health():
 @app.post("/suggestions", response_model=SuggestionResponse)
 def get_suggestions(req: SuggestionRequest):
     try:
-        prompt = PROMPT_TEMPLATE.format(mood=req.mood)
+        if not req.mood and not req.prompt:
+            raise HTTPException(status_code=400, detail="At least one of 'mood' or 'prompt' must be provided")
+
+        # Build dynamic prompt
+        prompt_parts = []
+        if req.mood:
+            prompt_parts.append(f"Mood: {req.mood}")
+        if req.prompt:
+            prompt_parts.append(f"Request: {req.prompt}")
+
+        prompt = "\n".join(prompt_parts)
 
         config = types.GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
