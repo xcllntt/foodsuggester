@@ -4,6 +4,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from google import genai
 from google.genai import types
 
@@ -19,7 +20,14 @@ MODEL = "gemini-1.5-flash"
 
 # FastAPI app
 app = FastAPI(title="Naija Mood Meals")
-
+# Allow cross-origin requests (important for multiple frontends)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://moodtofood.lovable.app", "https://foodsuggester.netlify.app"],  # you can restrict to ["http://localhost:3000", "https://yourfrontend.com"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Request/Response models
 class SuggestionRequest(BaseModel):
     mood: Optional[str] = None
