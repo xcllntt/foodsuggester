@@ -16,7 +16,7 @@ if not GEMINI_API_KEY:
 
 # Initialize Gemini client
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-1.5-flash-001"
 
 # FastAPI app
 app = FastAPI(title="Naija Mood Meals")
